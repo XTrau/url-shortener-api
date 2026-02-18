@@ -19,11 +19,15 @@ func main() {
 	postgres, err := database.NewPostresDB(config.AppConfig)
 	if err != nil {
 		log.Fatal("Error on creating Postres connection pool.", err)
+	} else {
+		log.Println("Postgres connected!")
 	}
 
 	rdb, err := cache.NewRedisClient(config.AppConfig)
 	if err != nil {
 		log.Fatal("Error connecting to Redis.", err)
+	} else {
+		log.Println("Redis connected!")
 	}
 
 	urlRepo := database.NewUrlDBRepository(postgres)
@@ -35,6 +39,6 @@ func main() {
 	shortenerHandlers.RegisterRoutes(mux)
 	server := middlewares.RecoverMiddleware(middlewares.LoggingMiddleware(logger, mux))
 
-	logger.Info("Server started!")
+	log.Println("Server started!")
 	http.ListenAndServe(":8080", server)
 }
