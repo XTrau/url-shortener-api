@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
 	"urlshortener/internal/errors"
 	"urlshortener/internal/usecases"
@@ -22,8 +23,8 @@ type ShortenerRoutes struct {
 	useCases usecases.UrlUseCases
 }
 
-func NewShortenerRoutes(urlRepo database.UrlRepository) *ShortenerRoutes {
-	useCases := usecases.NewUrlUseCases(urlRepo)
+func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCache) *ShortenerRoutes {
+	useCases := usecases.NewUrlUseCases(urlRepo, urlCache)
 	return &ShortenerRoutes{useCases}
 }
 

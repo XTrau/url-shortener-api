@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -16,6 +15,12 @@ type Config struct {
 	DBHost string
 	DBPort int
 	DBName string
+
+	RedisHost     string
+	RedisPort     int
+	RedisUser     string
+	RedisPassword string
+	RedisDatabase int
 }
 
 var AppConfig Config
@@ -25,27 +30,32 @@ func init() {
 		log.Fatal("No .env file found, using environment variables")
 	}
 
-	port, err := strconv.Atoi(os.Getenv("DB_PORT"))
+	dbPort, err := strconv.Atoi(os.Getenv("DB_PORT"))
 	if err != nil {
 		log.Fatal("Error parsing DB_PORT:", err)
+	}
+
+	redisPort, err := strconv.Atoi(os.Getenv("REDIS_PORT"))
+	if err != nil {
+		log.Fatal("Error parsing REDIS_PORT:", err)
+	}
+
+	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		log.Fatal("Error parsing REDIS_DB:", err)
 	}
 
 	AppConfig = Config{
 		DBUser: os.Getenv("DB_USER"),
 		DBPass: os.Getenv("DB_PASS"),
 		DBHost: os.Getenv("DB_HOST"),
-		DBPort: port,
+		DBPort: dbPort,
 		DBName: os.Getenv("DB_NAME"),
-	}
-}
 
-func GetPostgresDsn() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		AppConfig.DBUser,
-		AppConfig.DBPass,
-		AppConfig.DBHost,
-		AppConfig.DBPort,
-		AppConfig.DBName,
-	)
+		RedisHost:     os.Getenv("REDIS_HOST"),
+		RedisPort:     redisPort,
+		RedisUser:     os.Getenv("REDIS_USER"),
+		RedisPassword: os.Getenv("REDIS_PASS"),
+		RedisDatabase: redisDB,
+	}
 }
