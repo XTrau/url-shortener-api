@@ -1,0 +1,95 @@
+package handlers
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
+	"urlshortener/internal/database"
+	"urlshortener/internal/errors"
+	"urlshortener/internal/usecases"
+)
+
+type UrlBody struct {
+	Url string `json:"url"`
+}
+
+type SlugBody struct {
+	Slug string `json:"slug"`
+}
+
+type ShortenerRoutes struct {
+	useCases usecases.UrlUseCases
+}
+
+func NewShortenerRoutes(urlRepo database.UrlRepository) *ShortenerRoutes {
+	useCases := usecases.NewUrlUseCases(urlRepo)
+	return &ShortenerRoutes{useCases}
+}
+
+func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/short", sr.ShortenerHandler)
+	mux.HandleFunc("/", sr.RedirectHandler)
+}
+
+func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		panic(err)
+	}
+
+	var urlReq UrlBody
+	err = json.Unmarshal(body, &urlReq)
+
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	slug, err := sr.useCases.GetSlug(urlReq.Url)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		panic(err)
+	}
+
+	urlResp := SlugBody{slug}
+	data, err := json.Marshal(urlResp)
+
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		panic(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	slug := strings.Trim(r.URL.Path, "/")
+
+	url, err := sr.useCases.GetUrl(slug)
+	if err != nil {
+		if err == errors.UrlNotFound {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		} else {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			panic(err)
+		}
+		return
+	}
+
+	w.Header().Set("Location", url)
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusMovedPermanently)
+}
