@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
-	"urlshortener/internal/errors"
 	"urlshortener/internal/usecases"
 )
 
@@ -29,16 +30,11 @@ func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCache)
 }
 
 func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/short", sr.ShortenerHandler)
-	mux.HandleFunc("/", sr.RedirectHandler)
+	mux.HandleFunc("GET /short", sr.ShortenerHandler)
+	mux.HandleFunc("GET /", sr.RedirectHandler)
 }
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -72,16 +68,11 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
 	slug := strings.Trim(r.URL.Path, "/")
 
 	url, err := sr.useCases.GetUrl(slug)
 	if err != nil {
-		if err == errors.UrlNotFound {
+		if errors.Is(err, apperrors.ErrUrlNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		} else {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

@@ -1,10 +1,11 @@
 package usecases
 
 import (
+	"errors"
 	"log"
+	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
-	"urlshortener/internal/errors"
 )
 
 type UrlUseCases struct {
@@ -22,16 +23,16 @@ func (uc UrlUseCases) GetSlug(url string) (string, error) {
 		return slug, nil
 	}
 
-	if err != errors.CacheKeyNotFound {
+	if !errors.Is(err, apperrors.ErrCacheKeyNotFound) {
 		return "", err
 	}
 
 	slug, err = uc.urlRepo.GetSlugByUrl(url)
-	if err != nil && err != errors.SlugNotFound {
+	if err != nil && !errors.Is(err, apperrors.ErrSlugNotFound) {
 		return "", err
 	}
 
-	if err == errors.SlugNotFound {
+	if errors.Is(err, apperrors.ErrSlugNotFound) {
 		slug = generateSlug(8)
 		uc.urlRepo.Create(url, slug)
 	}
@@ -50,7 +51,7 @@ func (uc UrlUseCases) GetUrl(slug string) (string, error) {
 		return url, nil
 	}
 
-	if err != errors.CacheKeyNotFound {
+	if !errors.Is(err, apperrors.ErrCacheKeyNotFound) {
 		return "", err
 	}
 

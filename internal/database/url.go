@@ -2,7 +2,8 @@ package database
 
 import (
 	"database/sql"
-	"urlshortener/internal/errors"
+	"errors"
+	"urlshortener/internal/apperrors"
 )
 
 type UrlRepository interface {
@@ -28,8 +29,8 @@ func (repo UrlDBRepository) GetUrlBySlug(slug string) (string, error) {
 	var url string
 	row := repo.db.QueryRow("SELECT url FROM urls WHERE slug=$1", slug)
 	err := row.Scan(&url)
-	if err == sql.ErrNoRows {
-		return "", errors.UrlNotFound
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", apperrors.ErrUrlNotFound
 	}
 	return url, err
 }
@@ -38,8 +39,8 @@ func (repo UrlDBRepository) GetSlugByUrl(url string) (string, error) {
 	var slug string
 	row := repo.db.QueryRow("SELECT slug FROM urls WHERE url=$1", url)
 	err := row.Scan(&slug)
-	if err == sql.ErrNoRows {
-		return "", errors.SlugNotFound
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", apperrors.ErrSlugNotFound
 	}
 	return slug, err
 }

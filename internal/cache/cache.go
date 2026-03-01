@@ -2,9 +2,10 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
-	"urlshortener/internal/errors"
+	"urlshortener/internal/apperrors"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -57,8 +58,8 @@ func (uc UrlRedisCache) GetUrl(slug string) (string, error) {
 
 	url, err := uc.rdb.Get(ctx, key).Result()
 
-	if err == redis.Nil {
-		return "", errors.CacheKeyNotFound
+	if errors.Is(err, redis.Nil) {
+		return "", apperrors.ErrCacheKeyNotFound
 	}
 
 	return url, err
@@ -72,8 +73,8 @@ func (uc UrlRedisCache) GetSlug(url string) (string, error) {
 
 	url, err := uc.rdb.Get(ctx, key).Result()
 
-	if err == redis.Nil {
-		return "", errors.CacheKeyNotFound
+	if errors.Is(err, redis.Nil) {
+		return "", apperrors.ErrCacheKeyNotFound
 	}
 
 	return url, err
