@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/config"
 	"urlshortener/internal/database"
@@ -37,8 +42,32 @@ func main() {
 
 	mux := http.NewServeMux()
 	shortenerHandlers.RegisterRoutes(mux)
-	server := middlewares.RecoverMiddleware(middlewares.LoggingMiddleware(logger, mux))
+	h := middlewares.RecoverMiddleware(middlewares.LoggingMiddleware(logger, mux))
 
-	log.Println("Server started!")
-	http.ListenAndServe(":8080", server)
+	server := http.Server{
+		Addr:    ":8080",
+		Handler: h,
+	}
+
+	go func() {
+		log.Println("Server started!")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Println("Shutdown error,", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	fmt.Println("Shutting down...")
+	if err = server.Shutdown(ctx); err != nil {
+		fmt.Println("Error on shutting down:", err)
+	}
+
+	fmt.Println("Server stopped.")
 }
