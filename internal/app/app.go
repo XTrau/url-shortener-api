@@ -29,6 +29,11 @@ func Run() error {
 
 	slog.Info("Postgres connected!")
 
+	err = database.RunMigrations(config.AppConfig)
+	if err != nil {
+		return fmt.Errorf("Error on running Postgres migrations: %w", err)
+	}
+
 	rdb, err := cache.NewRedisClient(config.AppConfig)
 	if err != nil {
 		return fmt.Errorf("Error connecting to Redis: %w", err)

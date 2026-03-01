@@ -6,6 +6,10 @@ import (
 	"log/slog"
 	"urlshortener/internal/config"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -32,4 +36,25 @@ func NewPostresDB(cfg config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func RunMigrations(cfg config.Config) error {
+	slog.Debug("Running Migrations")
+
+	m, err := migrate.New(
+		"file://migrations",
+		GetPostgresDsn(cfg),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }

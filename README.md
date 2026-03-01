@@ -13,6 +13,7 @@ API для сокращения ссылок.
 - net/http
 - database/sql
 - pgx (драйвер для PostgreSQL)
+- golang-migrate (для миграций)
 - go-redis/v9 (для Redis)
 
 ### Пример задачи
