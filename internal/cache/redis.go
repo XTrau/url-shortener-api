@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 	"urlshortener/internal/config"
 
@@ -22,6 +23,7 @@ func NewRedisClient(cfg config.Config) (*redis.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
+	slog.Debug("Ping to Redis")
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return nil, err
 	}

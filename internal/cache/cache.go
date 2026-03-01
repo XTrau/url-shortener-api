@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"urlshortener/internal/apperrors"
 
@@ -33,6 +34,8 @@ func (uc UrlRedisCache) GetUrlKey(url string) string {
 }
 
 func (uc UrlRedisCache) Save(url string, slug string) error {
+	slog.Debug("Saving url to Redis", slog.String("url", url), slog.String("slug", slug))
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
@@ -56,6 +59,8 @@ func (uc UrlRedisCache) GetUrl(slug string) (string, error) {
 
 	key := uc.GetSlugKey(slug)
 
+	slog.Debug("Getting url from Redis", slog.String("key", key))
+
 	url, err := uc.rdb.Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
@@ -66,10 +71,13 @@ func (uc UrlRedisCache) GetUrl(slug string) (string, error) {
 }
 
 func (uc UrlRedisCache) GetSlug(url string) (string, error) {
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
 	key := uc.GetUrlKey(url)
+
+	slog.Debug("Getting url from Redis", slog.String("key", key))
 
 	url, err := uc.rdb.Get(ctx, key).Result()
 

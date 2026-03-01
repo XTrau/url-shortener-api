@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"errors"
-	"log"
 	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
@@ -34,12 +33,16 @@ func (uc UrlUseCases) GetSlug(url string) (string, error) {
 
 	if errors.Is(err, apperrors.ErrSlugNotFound) {
 		slug = generateSlug(8)
-		uc.urlRepo.Create(url, slug)
+		err := uc.urlRepo.Create(url, slug)
+
+		if err != nil {
+			return "", err
+		}
 	}
 
 	err = uc.urlCache.Save(url, slug)
 	if err != nil {
-		log.Println("Error on save to Redis.", err)
+		return "", err
 	}
 
 	return slug, nil
@@ -57,9 +60,13 @@ func (uc UrlUseCases) GetUrl(slug string) (string, error) {
 
 	url, err = uc.urlRepo.GetUrlBySlug(slug)
 
+	if err != nil {
+		return "", apperrors.ErrUrlNotFound
+	}
+
 	err = uc.urlCache.Save(url, slug)
 	if err != nil {
-		log.Println("Error on save to Redis.", err)
+		return "", err
 	}
 
 	return url, nil

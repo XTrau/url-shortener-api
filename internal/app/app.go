@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,31 +17,33 @@ import (
 )
 
 func Run() error {
-	textHandler := slog.NewTextHandler(os.Stdout, nil)
-	logger := slog.New(textHandler)
+	logOpts := &slog.HandlerOptions{
+		Level: config.AppConfig.LogLevel,
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, logOpts)))
 
 	postgres, err := database.NewPostresDB(config.AppConfig)
 	if err != nil {
-		log.Fatal("Error on creating Postres connection pool.", err)
-	} else {
-		log.Println("Postgres connected!")
+		return fmt.Errorf("Error on creating Postres connection pool: %w", err)
 	}
+
+	slog.Info("Postgres connected!")
 
 	rdb, err := cache.NewRedisClient(config.AppConfig)
 	if err != nil {
-		log.Fatal("Error connecting to Redis.", err)
-	} else {
-		log.Println("Redis connected!")
+		return fmt.Errorf("Error connecting to Redis: %w", err)
 	}
 
-	urlRepo := database.NewUrlDBRepository(postgres)
-	urlRedisCache := cache.NewUrlRedisCache(rdb)
-
-	shortenerHandlers := handlers.NewShortenerRoutes(urlRepo, urlRedisCache)
+	slog.Info("Redis connected!")
 
 	mux := http.NewServeMux()
-	shortenerHandlers.RegisterRoutes(mux)
-	h := middlewares.RecoverMiddleware(middlewares.LoggingMiddleware(logger, mux))
+
+	urlRepo := database.NewUrlDBRepository(postgres)
+	urlCache := cache.NewUrlRedisCache(rdb)
+	r := handlers.NewShortenerRoutes(urlRepo, urlCache)
+	r.RegisterRoutes(mux)
+
+	h := middlewares.LoggingMiddleware(mux)
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -50,9 +51,9 @@ func Run() error {
 	}
 
 	go func() {
-		log.Println("Server started!")
+		slog.Info("Server started!")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Println("Server error: %w", err)
+			slog.Error(fmt.Sprintf("Server error: %v", err))
 		}
 	}()
 
@@ -64,11 +65,11 @@ func Run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	log.Println("Shutting down...")
+	slog.Info("Shutting down...")
 	if err = server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("Error on shutting down: %w", err)
 	}
 
-	log.Println("Server stopped.")
+	slog.Info("Server stopped.")
 	return nil
 }

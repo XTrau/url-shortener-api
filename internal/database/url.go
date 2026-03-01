@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"urlshortener/internal/apperrors"
 )
 
@@ -21,13 +22,21 @@ func NewUrlDBRepository(db *sql.DB) UrlDBRepository {
 }
 
 func (repo UrlDBRepository) Create(url string, slug string) error {
-	_, err := repo.db.Exec("INSERT INTO urls (url, slug) VALUES ($1, $2)", url, slug)
+	slog.Debug("Inserting url to database", slog.String("url", url), slog.String("slug", slug))
+
+	query := "INSERT INTO urls (url, slug) VALUES ($1, $2)"
+	_, err := repo.db.Exec(query, url, slug)
+
 	return err
 }
 
 func (repo UrlDBRepository) GetUrlBySlug(slug string) (string, error) {
+	slog.Debug("Getting url from database", slog.String("slug", slug))
+
+	query := "SELECT url FROM urls WHERE slug=$1"
+	row := repo.db.QueryRow(query, slug)
+
 	var url string
-	row := repo.db.QueryRow("SELECT url FROM urls WHERE slug=$1", slug)
 	err := row.Scan(&url)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", apperrors.ErrUrlNotFound
@@ -36,8 +45,12 @@ func (repo UrlDBRepository) GetUrlBySlug(slug string) (string, error) {
 }
 
 func (repo UrlDBRepository) GetSlugByUrl(url string) (string, error) {
+	slog.Debug("Getting url from database", slog.String("url", url))
+
+	query := "SELECT slug FROM urls WHERE url=$1"
+	row := repo.db.QueryRow(query, url)
+
 	var slug string
-	row := repo.db.QueryRow("SELECT slug FROM urls WHERE url=$1", url)
 	err := row.Scan(&slug)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", apperrors.ErrSlugNotFound

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
-	"strings"
 	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
@@ -30,8 +30,9 @@ func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCache)
 }
 
 func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /short", sr.ShortenerHandler)
-	mux.HandleFunc("GET /", sr.RedirectHandler)
+	slog.Debug("Registering shortener routes")
+	mux.HandleFunc("POST /short", sr.ShortenerHandler)
+	mux.HandleFunc("GET /{slug}", sr.RedirectHandler)
 }
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
@@ -68,9 +69,9 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
-	slug := strings.Trim(r.URL.Path, "/")
-
+	slug := r.PathValue("slug")
 	url, err := sr.useCases.GetUrl(slug)
+
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUrlNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

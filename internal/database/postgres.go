@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"urlshortener/internal/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -25,6 +26,7 @@ func NewPostresDB(cfg config.Config) (*sql.DB, error) {
 		return nil, err
 	}
 
+	slog.Debug("Ping to PostgreSQL")
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}

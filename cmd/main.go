@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"urlshortener/internal/app"
 )
 
 func main() {
 	if err := app.Run(); err != nil {
-		fmt.Println(err)
+		slog.Error(err.Error())
 	}
 }
