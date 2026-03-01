@@ -31,11 +31,5 @@ func NewPostresDB(cfg config.Config) (*sql.DB, error) {
 		return nil, err
 	}
 
-	db.Exec(`CREATE TABLE IF NOT EXISTS urls (
-		id SERIAL PRIMARY KEY,
-		url TEXT UNIQUE NOT NULL,
-		slug TEXT UNIQUE NOT NULL
-	);`)
-
 	return db, nil
 }
