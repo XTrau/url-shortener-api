@@ -42,6 +42,8 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 		panic(err)
 	}
 
+	slog.Debug("short request", slog.String("body", string(body)))
+
 	var urlReq UrlBody
 	err = json.Unmarshal(body, &urlReq)
 
@@ -70,6 +72,9 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
+
+	slog.Debug("slug request", slog.String("slug", slug))
+
 	url, err := sr.useCases.GetUrl(slug)
 
 	if err != nil {
