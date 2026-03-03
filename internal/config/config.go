@@ -41,7 +41,7 @@ func init() {
 		logLevel = slog.LevelDebug
 	} else if strings.EqualFold("error", logLevelStr) {
 		logLevel = slog.LevelError
-	} else if strings.EqualFold("error", logLevelStr) {
+	} else if strings.EqualFold("warning", logLevelStr) {
 		logLevel = slog.LevelWarn
 	} else {
 		logLevel = slog.LevelInfo
