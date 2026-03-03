@@ -16,6 +16,20 @@ API для сокращения ссылок.
 - golang-migrate (для миграций)
 - go-redis/v9 (для Redis)
 
+### Запуск в Docker compose
+
+Windows:
+
+```
+docker-compose up -d
+```
+
+Linux:
+
+```
+docker compose up -d
+```
+
 ### Пример задачи
 
 Например есть длинная ссылка:
