@@ -25,30 +25,34 @@ func NewUrlRedisCache(rdb *redis.Client) UrlRedisCache {
 	return UrlRedisCache{rdb}
 }
 
-func (uc UrlRedisCache) GetSlugKey(slug string) string {
-	return fmt.Sprintf("slug:%s", slug)
+func (uc UrlRedisCache) GetUrlKey(slug string) string {
+	return fmt.Sprintf("url:%s", slug)
 }
 
-func (uc UrlRedisCache) GetUrlKey(url string) string {
-	return fmt.Sprintf("url:%s", url)
+func (uc UrlRedisCache) GetSlugKey(url string) string {
+	return fmt.Sprintf("slug:%s", url)
 }
 
 func (uc UrlRedisCache) Save(url string, slug string) error {
-	slog.Debug("Saving url to Redis", slog.String("url", url), slog.String("slug", slug))
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
-	urlKey := uc.GetUrlKey(url)
-	slugKey := uc.GetSlugKey(slug)
+	urlKey := uc.GetUrlKey(slug)
+	slugKey := uc.GetSlugKey(url)
 
-	err := uc.rdb.Set(ctx, urlKey, slug, time.Minute*5).Err()
+	slog.Debug(
+		"Saving url to Redis",
+		slog.String("urlKey", urlKey),
+		slog.String("slugKey", slugKey),
+	)
+
+	err := uc.rdb.Set(ctx, slugKey, slug, time.Minute*5).Err()
 
 	if err != nil {
 		return err
 	}
 
-	err = uc.rdb.Set(ctx, slugKey, url, time.Minute*5).Err()
+	err = uc.rdb.Set(ctx, urlKey, url, time.Minute*5).Err()
 
 	return err
 }
@@ -57,7 +61,7 @@ func (uc UrlRedisCache) GetUrl(slug string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
-	key := uc.GetSlugKey(slug)
+	key := uc.GetUrlKey(slug)
 
 	slog.Debug("Getting url from Redis", slog.String("key", key))
 
@@ -71,13 +75,12 @@ func (uc UrlRedisCache) GetUrl(slug string) (string, error) {
 }
 
 func (uc UrlRedisCache) GetSlug(url string) (string, error) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
-	key := uc.GetUrlKey(url)
+	key := uc.GetSlugKey(url)
 
-	slog.Debug("Getting url from Redis", slog.String("key", key))
+	slog.Debug("Getting slug from Redis", slog.String("key", key))
 
 	url, err := uc.rdb.Get(ctx, key).Result()
 
