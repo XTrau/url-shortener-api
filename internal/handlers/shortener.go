@@ -32,7 +32,7 @@ func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCache)
 func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
 	slog.Debug("Registering shortener routes")
 	mux.HandleFunc("POST /short", sr.ShortenerHandler)
-	mux.HandleFunc("GET /{slug}", sr.RedirectHandler)
+	mux.HandleFunc("GET /s/{slug}", sr.RedirectHandler)
 }
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {

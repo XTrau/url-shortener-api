@@ -45,8 +45,12 @@ func Run() error {
 
 	urlRepo := database.NewUrlDBRepository(postgres)
 	urlCache := cache.NewUrlRedisCache(rdb)
+
 	r := handlers.NewShortenerRoutes(urlRepo, urlCache)
 	r.RegisterRoutes(mux)
+
+	wh := handlers.NewWebHandlers()
+	wh.RegisterRoutes(mux)
 
 	h := middlewares.LoggingMiddleware(mux)
 
