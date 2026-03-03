@@ -30,8 +30,8 @@ type Config struct {
 var AppConfig Config
 
 func init() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("No .env file found, using environment variables")
+	if err := godotenv.Load(); err == nil {
+		slog.Info(".env file loaded.")
 	}
 
 	var logLevel slog.Level
