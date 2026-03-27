@@ -9,65 +9,57 @@ import (
 
 type UrlUseCases struct {
 	urlRepo  database.UrlRepository
-	urlCache cache.UrlCache
+	urlCache cache.UrlCacher
 }
 
-func NewUrlUseCases(urlRepo database.UrlRepository, urlCache cache.UrlCache) UrlUseCases {
+func NewUrlUseCases(urlRepo database.UrlRepository, urlCache cache.UrlCacher) UrlUseCases {
 	return UrlUseCases{urlRepo, urlCache}
 }
 
-func (uc UrlUseCases) GetSlug(url string) (string, error) {
-	slug, err := uc.urlCache.GetSlug(url)
+func (uc UrlUseCases) GetSlug(url string) (string, int, error) {
+	cachedSlug, err := uc.urlCache.GetSlug(url)
 	if err == nil {
-		return slug, nil
+		return cachedSlug.Slug, cachedSlug.SlugID, nil
 	}
 
-	if !errors.Is(err, apperrors.ErrCacheKeyNotFound) {
-		return "", err
-	}
-
-	slug, err = uc.urlRepo.GetSlugByUrl(url)
+	slug, slugID, err := uc.urlRepo.GetSlugByUrl(url)
 	if err != nil && !errors.Is(err, apperrors.ErrSlugNotFound) {
-		return "", err
+		return "", 0, err
 	}
 
 	if errors.Is(err, apperrors.ErrSlugNotFound) {
 		slug = generateSlug(8)
-		err := uc.urlRepo.Create(url, slug)
+		slugID, err = uc.urlRepo.GetFreeSlugID(slug)
 
 		if err != nil {
-			return "", err
+			return "", 0, err
+		}
+
+		err := uc.urlRepo.Create(url, slug, slugID)
+
+		if err != nil {
+			return "", 0, err
 		}
 	}
 
-	err = uc.urlCache.Save(url, slug)
-	if err != nil {
-		return "", err
-	}
+	err = uc.urlCache.Save(url, slug, slugID)
 
-	return slug, nil
+	return slug, slugID, nil
 }
 
-func (uc UrlUseCases) GetUrl(slug string) (string, error) {
-	url, err := uc.urlCache.GetUrl(slug)
+func (uc UrlUseCases) GetUrl(slug string, slugID int) (string, error) {
+	url, err := uc.urlCache.GetUrl(slug, slugID)
 	if err == nil {
 		return url, nil
 	}
 
-	if !errors.Is(err, apperrors.ErrCacheKeyNotFound) {
+	url, err = uc.urlRepo.GetUrlBySlug(slug, slugID)
+
+	if err != nil {
 		return "", err
 	}
 
-	url, err = uc.urlRepo.GetUrlBySlug(slug)
-
-	if err != nil {
-		return "", apperrors.ErrUrlNotFound
-	}
-
-	err = uc.urlCache.Save(url, slug)
-	if err != nil {
-		return "", err
-	}
+	err = uc.urlCache.Save(url, slug, slugID)
 
 	return url, nil
 }

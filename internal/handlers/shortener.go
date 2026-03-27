@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
@@ -17,14 +18,15 @@ type UrlBody struct {
 }
 
 type SlugBody struct {
-	Slug string `json:"slug"`
+	Slug   string `json:"slug"`
+	SlugID int    `json:"slug_id"`
 }
 
 type ShortenerRoutes struct {
 	useCases usecases.UrlUseCases
 }
 
-func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCache) *ShortenerRoutes {
+func NewShortenerRoutes(urlRepo database.UrlRepository, urlCache cache.UrlCacher) *ShortenerRoutes {
 	useCases := usecases.NewUrlUseCases(urlRepo, urlCache)
 	return &ShortenerRoutes{useCases}
 }
@@ -37,6 +39,7 @@ func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
+
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(err)
@@ -52,13 +55,13 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	slug, err := sr.useCases.GetSlug(urlReq.Url)
+	slug, slugID, err := sr.useCases.GetSlug(urlReq.Url)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(err)
 	}
 
-	urlResp := SlugBody{slug}
+	urlResp := SlugBody{slug, slugID}
 	data, err := json.Marshal(urlResp)
 
 	if err != nil {
@@ -72,10 +75,16 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
+	slugID, err := strconv.Atoi(r.URL.Query().Get("i"))
+
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 
 	slog.Debug("slug request", slog.String("slug", slug))
 
-	url, err := sr.useCases.GetUrl(slug)
+	url, err := sr.useCases.GetUrl(slug, slugID)
 
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUrlNotFound) {

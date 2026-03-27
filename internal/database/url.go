@@ -8,9 +8,10 @@ import (
 )
 
 type UrlRepository interface {
-	Create(url string, slug string) error
-	GetUrlBySlug(slug string) (string, error)
-	GetSlugByUrl(url string) (string, error)
+	Create(url string, slug string, slugID int) error
+	GetUrlBySlug(slug string, slugID int) (string, error)
+	GetSlugByUrl(url string) (string, int, error)
+	GetFreeSlugID(slug string) (int, error)
 }
 
 type UrlDBRepository struct {
@@ -21,20 +22,20 @@ func NewUrlDBRepository(db *sql.DB) UrlDBRepository {
 	return UrlDBRepository{db}
 }
 
-func (repo UrlDBRepository) Create(url string, slug string) error {
-	slog.Debug("Inserting url to database", slog.String("url", url), slog.String("slug", slug))
+func (repo UrlDBRepository) Create(url string, slug string, slugID int) error {
+	slog.Debug("Inserting url to database", slog.String("url", url), slog.String("slug", slug), slog.Int("slugID", slugID))
 
-	query := "INSERT INTO urls (url, slug) VALUES ($1, $2)"
-	_, err := repo.db.Exec(query, url, slug)
+	query := "INSERT INTO urls (url, slug, slug_id) VALUES ($1, $2, $3)"
+	_, err := repo.db.Exec(query, url, slug, slugID)
 
 	return err
 }
 
-func (repo UrlDBRepository) GetUrlBySlug(slug string) (string, error) {
-	slog.Debug("Getting url from database", slog.String("slug", slug))
+func (repo UrlDBRepository) GetUrlBySlug(slug string, slugID int) (string, error) {
+	slog.Debug("Getting url from database", slog.String("slug", slug), slog.Int("slugID", slugID))
 
-	query := "SELECT url FROM urls WHERE slug=$1"
-	row := repo.db.QueryRow(query, slug)
+	query := "SELECT url FROM urls WHERE slug=$1 AND slug_id=$2"
+	row := repo.db.QueryRow(query, slug, slugID)
 
 	var url string
 	err := row.Scan(&url)
@@ -44,16 +45,35 @@ func (repo UrlDBRepository) GetUrlBySlug(slug string) (string, error) {
 	return url, err
 }
 
-func (repo UrlDBRepository) GetSlugByUrl(url string) (string, error) {
+func (repo UrlDBRepository) GetSlugByUrl(url string) (string, int, error) {
 	slog.Debug("Getting url from database", slog.String("url", url))
 
-	query := "SELECT slug FROM urls WHERE url=$1"
+	query := "SELECT slug, slug_id FROM urls WHERE url=$1"
 	row := repo.db.QueryRow(query, url)
 
 	var slug string
-	err := row.Scan(&slug)
+	var slugID int
+
+	err := row.Scan(&slug, &slugID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", apperrors.ErrSlugNotFound
+		return "", 0, apperrors.ErrSlugNotFound
 	}
-	return slug, err
+
+	return slug, slugID, err
+}
+
+func (repo UrlDBRepository) GetFreeSlugID(slug string) (int, error) {
+	slog.Debug("Getting last slug ID", slog.String("slug", slug))
+
+	query := "SELECT COALESCE(MAX(slug_id), 0) as last_slug_id FROM urls where slug=$1"
+	row := repo.db.QueryRow(query, slug)
+
+	var slugID int
+
+	err := row.Scan(&slugID)
+	if err != nil {
+		return 0, err
+	}
+
+	return slugID + 1, nil
 }
