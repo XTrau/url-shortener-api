@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -38,22 +37,14 @@ func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		panic(err)
-	}
-
-	slog.Debug("short request", slog.String("body", string(body)))
-
 	var urlReq UrlBody
-	err = json.Unmarshal(body, &urlReq)
 
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&urlReq); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+
+	slog.Debug("Request to Short url", slog.Any("Request Body", urlReq))
 
 	slug, slugID, err := sr.useCases.GetSlug(urlReq.Url)
 	if err != nil {
@@ -62,15 +53,12 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	urlResp := SlugBody{slug, slugID}
-	data, err := json.Marshal(urlResp)
 
-	if err != nil {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(urlResp); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(err)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(data)
 }
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
