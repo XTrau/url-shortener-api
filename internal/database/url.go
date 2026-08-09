@@ -5,48 +5,49 @@ import (
 	"errors"
 	"log/slog"
 	"urlshortener/internal/apperrors"
+	"urlshortener/internal/domain"
 )
 
 type UrlRepository interface {
-	Create(url string, slug string, slugID int) error
-	GetUrlBySlug(slug string, slugID int) (string, error)
-	GetSlugByUrl(url string) (string, int, error)
-	GetFreeSlugID(slug string) (int, error)
+	Create(url domain.Url, slug domain.Slug) error
+	GetUrlBySlug(slug domain.Slug) (domain.Url, error)
+	GetSlugByUrl(url domain.Url) (domain.Slug, error)
+	GetFreeSlugID(slugText string) (int, error)
 }
 
-type UrlDBRepository struct {
+type UrlPostgresRepository struct {
 	db *sql.DB
 }
 
-func NewUrlDBRepository(db *sql.DB) UrlDBRepository {
-	return UrlDBRepository{db}
+func NewUrlPostgresRepository(db *sql.DB) UrlPostgresRepository {
+	return UrlPostgresRepository{db}
 }
 
-func (repo UrlDBRepository) Create(url string, slug string, slugID int) error {
-	slog.Debug("Inserting url to database", slog.String("url", url), slog.String("slug", slug), slog.Int("slugID", slugID))
+func (repo UrlPostgresRepository) Create(url domain.Url, slug domain.Slug) error {
+	slog.Debug("Inserting url to database", slog.String("url", url.Url), slog.String("slug", slug.Text), slog.Int("slugID", slug.SlugID))
 
 	query := "INSERT INTO urls (url, slug, slug_id) VALUES ($1, $2, $3)"
-	_, err := repo.db.Exec(query, url, slug, slugID)
+	_, err := repo.db.Exec(query, url, slug.Text, slug.SlugID)
 
 	return err
 }
 
-func (repo UrlDBRepository) GetUrlBySlug(slug string, slugID int) (string, error) {
-	slog.Debug("Getting url from database", slog.String("slug", slug), slog.Int("slugID", slugID))
+func (repo UrlPostgresRepository) GetUrlBySlug(slug domain.Slug) (domain.Url, error) {
+	slog.Debug("Getting url from database", slog.String("slug", slug.Text), slog.Int("slugID", slug.SlugID))
 
 	query := "SELECT url FROM urls WHERE slug=$1 AND slug_id=$2"
-	row := repo.db.QueryRow(query, slug, slugID)
+	row := repo.db.QueryRow(query, slug.Text, slug.SlugID)
 
 	var url string
 	err := row.Scan(&url)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", apperrors.ErrUrlNotFound
+		return domain.Url{}, apperrors.ErrUrlNotFound
 	}
-	return url, err
+	return domain.Url{Url: url}, err
 }
 
-func (repo UrlDBRepository) GetSlugByUrl(url string) (string, int, error) {
-	slog.Debug("Getting url from database", slog.String("url", url))
+func (repo UrlPostgresRepository) GetSlugByUrl(url domain.Url) (domain.Slug, error) {
+	slog.Debug("Getting url from database", slog.String("url", url.Url))
 
 	query := "SELECT slug, slug_id FROM urls WHERE url=$1"
 	row := repo.db.QueryRow(query, url)
@@ -56,17 +57,20 @@ func (repo UrlDBRepository) GetSlugByUrl(url string) (string, int, error) {
 
 	err := row.Scan(&slug, &slugID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", 0, apperrors.ErrSlugNotFound
+		return domain.Slug{}, apperrors.ErrSlugNotFound
 	}
 
-	return slug, slugID, err
+	return domain.Slug{
+		Text:   slug,
+		SlugID: slugID,
+	}, err
 }
 
-func (repo UrlDBRepository) GetFreeSlugID(slug string) (int, error) {
-	slog.Debug("Getting last slug ID", slog.String("slug", slug))
+func (repo UrlPostgresRepository) GetFreeSlugID(slugText string) (int, error) {
+	slog.Debug("Getting last slug ID", slog.String("slug", slugText))
 
 	query := "SELECT COALESCE(MAX(slug_id), 0) as last_slug_id FROM urls where slug=$1"
-	row := repo.db.QueryRow(query, slug)
+	row := repo.db.QueryRow(query, slugText)
 
 	var slugID int
 

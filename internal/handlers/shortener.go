@@ -38,26 +38,21 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 
 	slog.Debug("Request to Short url", slog.Any("Request Body", urlReq))
 
-	slug, slugID, err := sr.useCases.GetSlug(urlReq.Url)
+	slug, err := sr.useCases.GetSlug(urlReq)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(err)
 	}
 
-	urlResp := domain.Slug{
-		Slug:   slug,
-		SlugID: slugID,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(urlResp); err != nil {
+	if err := json.NewEncoder(w).Encode(slug); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(err)
 	}
 }
 
 func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Request) {
-	slug := r.PathValue("slug")
+	slugText := r.PathValue("slug")
 	slugID, err := strconv.Atoi(r.URL.Query().Get("i"))
 
 	if err != nil {
@@ -65,9 +60,14 @@ func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	slog.Debug("slug request", slog.String("slug", slug))
+	slog.Debug("slug request", slog.String("slug", slugText))
 
-	url, err := sr.useCases.GetUrl(slug, slugID)
+	slug := domain.Slug{
+		SlugID: slugID,
+		Text:   slugText,
+	}
+
+	url, err := sr.useCases.GetUrl(slug)
 
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUrlNotFound) {
@@ -79,7 +79,7 @@ func (sr *ShortenerRoutes) RedirectHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.Header().Set("Location", url)
+	w.Header().Set("Location", url.Url)
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusMovedPermanently)
 }

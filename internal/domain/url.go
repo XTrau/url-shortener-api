@@ -5,6 +5,6 @@ type Url struct {
 }
 
 type Slug struct {
-	Slug   string `json:"slug"`
 	SlugID int    `json:"slug_id"`
+	Text   string `json:"slug"`
 }

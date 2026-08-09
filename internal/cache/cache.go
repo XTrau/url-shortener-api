@@ -1,68 +1,26 @@
 package cache
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/redis/go-redis/v9"
+	"urlshortener/internal/domain"
 )
 
-type CachedSlug struct {
-	Slug   string `json:"slug"`
-	SlugID int    `json:"slug_id"`
-}
-
-type KeyValueStorage interface {
-	Get(key string) (string, error)
-	Set(key string, value string, ttl time.Duration) error
-}
-
-type RedisKeyValueStorage struct {
-	rdb     *redis.Client
-	timeout time.Duration
-}
-
-func NewRedisKeyValueStorage(rdb *redis.Client, timeout time.Duration) RedisKeyValueStorage {
-	return RedisKeyValueStorage{
-		rdb:     rdb,
-		timeout: timeout,
-	}
-}
-
-func (kvs RedisKeyValueStorage) Get(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), kvs.timeout)
-	defer cancel()
-
-	res, err := kvs.rdb.Get(ctx, key).Result()
-
-	if errors.Is(err, redis.Nil) {
-		return "", ErrCacheKeyNotFound
-	}
-
-	return res, err
-}
-
-func (kvs RedisKeyValueStorage) Set(key string, value string, ttl time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), kvs.timeout)
-	defer cancel()
-	return kvs.rdb.Set(ctx, key, value, ttl).Err()
-}
+const UrlTTL = time.Minute * 5
 
 type UrlCacher interface {
-	Save(url string, slug string, slugID int) error
-	GetUrl(slug string, slugID int) (string, error)
-	GetSlug(url string) (CachedSlug, error)
+	Save(url domain.Url, slug domain.Slug) error
+	GetUrl(slug domain.Slug) (domain.Url, error)
+	GetSlug(url domain.Url) (domain.Slug, error)
 }
 
 type UrlCache struct {
-	cache KeyValueStorage
+	cache domain.KeyValueStorage
 }
 
-func NewUrlCache(storage KeyValueStorage) UrlCache {
+func NewUrlCache(storage domain.KeyValueStorage) UrlCache {
 	return UrlCache{storage}
 }
 
@@ -74,11 +32,9 @@ func (uc UrlCache) GetSlugKey(url string) string {
 	return fmt.Sprintf("slug:%s", url)
 }
 
-func (uc UrlCache) Save(url string, slug string, slugID int) error {
-	const TTL = time.Minute * 5
-
-	urlKey := uc.GetUrlKey(slug, slugID)
-	slugKey := uc.GetSlugKey(url)
+func (uc UrlCache) Save(url domain.Url, slug domain.Slug) error {
+	urlKey := uc.GetUrlKey(slug.Text, slug.SlugID)
+	slugKey := uc.GetSlugKey(url.Url)
 
 	slog.Debug(
 		"Saving url to Cache",
@@ -86,54 +42,51 @@ func (uc UrlCache) Save(url string, slug string, slugID int) error {
 		slog.String("slugKey", slugKey),
 	)
 
-	cacheSlug := CachedSlug{slug, slugID}
-	cachedSlugData, err := json.Marshal(cacheSlug)
+	slugData, err := json.Marshal(slug)
 
 	if err != nil {
 		return err
 	}
 
-	err = uc.cache.Set(slugKey, string(cachedSlugData), TTL)
-
+	err = uc.cache.Set(slugKey, string(slugData), UrlTTL)
 	if err != nil {
 		return err
 	}
 
-	err = uc.cache.Set(urlKey, url, TTL)
+	err = uc.cache.Set(urlKey, url.Url, UrlTTL)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
-func (uc UrlCache) GetUrl(slug string, slugID int) (string, error) {
-	key := uc.GetUrlKey(slug, slugID)
-
+func (uc UrlCache) GetUrl(slug domain.Slug) (domain.Url, error) {
+	key := uc.GetUrlKey(slug.Text, slug.SlugID)
 	slog.Debug("Getting url from Cache", slog.String("key", key))
 
 	url, err := uc.cache.Get(key)
 
 	if err != nil {
-		return "", err
+		return domain.Url{}, err
 	}
 
-	return url, err
+	return domain.Url{Url: url}, err
 }
 
-func (uc UrlCache) GetSlug(url string) (CachedSlug, error) {
-	key := uc.GetSlugKey(url)
-
+func (uc UrlCache) GetSlug(url domain.Url) (domain.Slug, error) {
+	key := uc.GetSlugKey(url.Url)
 	slog.Debug("Getting slug from Redis", slog.String("key", key))
 
-	cachedSlugStr, err := uc.cache.Get(key)
+	slugData, err := uc.cache.Get(key)
 
 	if err != nil {
-		return CachedSlug{}, err
+		return domain.Slug{}, err
 	}
 
-	var cachedSlug CachedSlug
-	err = json.Unmarshal([]byte(cachedSlugStr), &cachedSlug)
-
-	if err != nil {
-		return CachedSlug{}, err
+	var cachedSlug domain.Slug
+	if err := json.Unmarshal([]byte(slugData), &cachedSlug); err != nil {
+		return domain.Slug{}, err
 	}
 
 	return cachedSlug, nil

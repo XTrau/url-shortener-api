@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 	"urlshortener/internal/cache"
+	"urlshortener/internal/domain"
 )
 
 // Struct without ttl for tests
@@ -39,11 +40,16 @@ func TestUrlCache(t *testing.T) {
 	}
 	urlCache := cache.NewUrlCache(cacheStore)
 
-	url := "http://example.com"
-	slug := "qweqwe"
-	slugID := 1
+	url := domain.Url{
+		Url: "http://example.com",
+	}
 
-	err := urlCache.Save(url, slug, slugID)
+	slug := domain.Slug{
+		Text:   "qweqwe",
+		SlugID: 1,
+	}
+
+	err := urlCache.Save(url, slug)
 	if err != nil {
 		t.Errorf("urlCache.Save must return nil error")
 	}
@@ -54,17 +60,17 @@ func TestUrlCache(t *testing.T) {
 		t.Errorf("urlCache.GetSlug must return nil error")
 	}
 
-	if cachedSlug.Slug != slug || cachedSlug.SlugID != slugID {
+	if cachedSlug.Text != slug.Text || cachedSlug.SlugID != slug.SlugID {
 		t.Errorf(
 			"cachedSlug.Slug=%q, cachedSlug.SlugID=%d expected: cachedSlug.Slug=%q, cachedSlug.SlugID=%d",
-			cachedSlug.Slug,
+			cachedSlug.Text,
 			cachedSlug.SlugID,
-			slug,
-			slugID,
+			slug.Text,
+			slug.SlugID,
 		)
 	}
 
-	cachedURL, err := urlCache.GetUrl(slug, slugID)
+	cachedURL, err := urlCache.GetUrl(slug)
 
 	if err != nil {
 		t.Errorf("urlCache.GetUrl must return nil error")

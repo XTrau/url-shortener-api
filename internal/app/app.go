@@ -100,7 +100,7 @@ func Run() error {
 
 	rkvs := cache.NewRedisKeyValueStorage(rdb, time.Second)
 
-	urlRepo := database.NewUrlDBRepository(postgres)
+	urlRepo := database.NewUrlPostgresRepository(postgres)
 	urlCache := cache.NewUrlCache(rkvs)
 
 	mux := http.NewServeMux()
