@@ -9,17 +9,9 @@ import (
 	"urlshortener/internal/apperrors"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/database"
+	"urlshortener/internal/domain"
 	"urlshortener/internal/usecases"
 )
-
-type UrlBody struct {
-	Url string `json:"url"`
-}
-
-type SlugBody struct {
-	Slug   string `json:"slug"`
-	SlugID int    `json:"slug_id"`
-}
 
 type ShortenerRoutes struct {
 	useCases usecases.UrlUseCases
@@ -37,7 +29,7 @@ func (sr *ShortenerRoutes) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	var urlReq UrlBody
+	var urlReq domain.Url
 
 	if err := json.NewDecoder(r.Body).Decode(&urlReq); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -52,7 +44,10 @@ func (sr *ShortenerRoutes) ShortenerHandler(w http.ResponseWriter, r *http.Reque
 		panic(err)
 	}
 
-	urlResp := SlugBody{slug, slugID}
+	urlResp := domain.Slug{
+		Slug:   slug,
+		SlugID: slugID,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(urlResp); err != nil {
