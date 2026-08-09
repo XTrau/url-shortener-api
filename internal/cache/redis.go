@@ -8,19 +8,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisKeyValueStorage struct {
+type RedisCache struct {
 	rdb     *redis.Client
 	timeout time.Duration
 }
 
-func NewRedisKeyValueStorage(rdb *redis.Client, timeout time.Duration) RedisKeyValueStorage {
-	return RedisKeyValueStorage{
+func NewRedisCache(rdb *redis.Client, timeout time.Duration) RedisCache {
+	return RedisCache{
 		rdb:     rdb,
 		timeout: timeout,
 	}
 }
 
-func (kvs RedisKeyValueStorage) Get(key string) (string, error) {
+func (kvs RedisCache) Get(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), kvs.timeout)
 	defer cancel()
 
@@ -33,7 +33,7 @@ func (kvs RedisKeyValueStorage) Get(key string) (string, error) {
 	return res, err
 }
 
-func (kvs RedisKeyValueStorage) Set(key string, value string, ttl time.Duration) error {
+func (kvs RedisCache) Set(key string, value string, ttl time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), kvs.timeout)
 	defer cancel()
 	return kvs.rdb.Set(ctx, key, value, ttl).Err()

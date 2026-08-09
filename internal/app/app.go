@@ -43,13 +43,14 @@ func Run() error {
 
 	slog.Info("Redis connected!")
 
-	rkvs := cache.NewRedisKeyValueStorage(rdb, time.Second)
+	redisCache := cache.NewRedisCache(rdb, time.Second)
 
-	urlRepo := database.NewUrlPostgresRepository(postgres)
-	urlCache := cache.NewUrlCache(rkvs)
+	urlCache := cache.NewUrlCache(redisCache)
+	urlRepository := database.NewUrlPostgresRepository(postgres)
+
+	r := handlers.NewShortenerRoutes(urlRepository, urlCache)
 
 	mux := http.NewServeMux()
-	r := handlers.NewShortenerRoutes(urlRepo, urlCache)
 	r.RegisterRoutes(mux)
 
 	wh := handlers.NewWebHandlers()

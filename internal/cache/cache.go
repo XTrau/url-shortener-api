@@ -17,10 +17,10 @@ type UrlCacher interface {
 }
 
 type UrlCache struct {
-	cache domain.KeyValueStorage
+	cache domain.Cache
 }
 
-func NewUrlCache(storage domain.KeyValueStorage) UrlCache {
+func NewUrlCache(storage domain.Cache) UrlCache {
 	return UrlCache{storage}
 }
 
