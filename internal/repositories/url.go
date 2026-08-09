@@ -20,7 +20,7 @@ func (repo UrlPostgresRepository) Create(url domain.Url, slug domain.Slug) error
 	slog.Debug("Inserting url to database", slog.String("url", url.Url), slog.String("slug", slug.Text), slog.Int("slugID", slug.SlugID))
 
 	query := "INSERT INTO urls (url, slug, slug_id) VALUES ($1, $2, $3)"
-	_, err := repo.db.Exec(query, url, slug.Text, slug.SlugID)
+	_, err := repo.db.Exec(query, url.Url, slug.Text, slug.SlugID)
 
 	return err
 }
@@ -43,7 +43,7 @@ func (repo UrlPostgresRepository) GetSlugByUrl(url domain.Url) (domain.Slug, err
 	slog.Debug("Getting url from database", slog.String("url", url.Url))
 
 	query := "SELECT slug, slug_id FROM urls WHERE url=$1"
-	row := repo.db.QueryRow(query, url)
+	row := repo.db.QueryRow(query, url.Url)
 
 	var slug string
 	var slugID int
