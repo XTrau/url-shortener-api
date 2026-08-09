@@ -79,10 +79,7 @@ func (uc UrlUseCases) GetSlug(url domain.Url) (domain.Slug, error) {
 	// Проверка в cache
 	cachedSlug, err := uc.urlCache.GetSlug(url)
 	if err == nil {
-		return domain.Slug{
-			Text:   cachedSlug.Text,
-			SlugID: cachedSlug.SlugID,
-		}, nil
+		return cachedSlug, nil
 	}
 
 	// Проверка в repository, сохранение в cache, паттерн Single flight
@@ -112,9 +109,9 @@ func (uc UrlUseCases) GetSlug(url domain.Url) (domain.Slug, error) {
 // Возвращает url для переданного slug
 func (uc UrlUseCases) GetUrl(slug domain.Slug) (domain.Url, error) {
 	// Проверка в cache
-	url, err := uc.urlCache.GetUrl(slug)
+	urlCached, err := uc.urlCache.GetUrl(slug)
 	if err == nil {
-		return url, nil
+		return urlCached, nil
 	}
 
 	// Group key для single flight
@@ -122,7 +119,7 @@ func (uc UrlUseCases) GetUrl(slug domain.Slug) (domain.Url, error) {
 
 	// Получаем Slug с repository, сохранение в cache, паттерн Single flight
 	u, err, _ := uc.g.Do(groupKey, func() (interface{}, error) {
-		url, err = uc.urlRepository.GetUrlBySlug(slug)
+		url, err := uc.urlRepository.GetUrlBySlug(slug)
 		if err != nil {
 			return domain.Url{}, err
 		}
