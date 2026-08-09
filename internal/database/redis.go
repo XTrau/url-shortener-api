@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -30,7 +29,6 @@ func NewRedisClient(cfg RedisConfig) (*redis.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	slog.Debug("Ping to Redis")
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return nil, err
 	}

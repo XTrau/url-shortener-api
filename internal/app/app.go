@@ -21,39 +21,41 @@ func Run() error {
 		return err
 	}
 
+	// Logger
 	logOpts := &slog.HandlerOptions{Level: cfg.LogLevel()}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, logOpts)))
 
+	// DB Connection
 	postgres, err := database.ConnectPostgres(cfg)
 	if err != nil {
-		return fmt.Errorf("Error on creating Postres connection pool: %w", err)
+		return fmt.Errorf("Error on creating Postres connection: %w", err)
 	}
 
-	slog.Info("Postgres connected!")
-
-	err = database.RunMigrations(cfg)
-	if err != nil {
-		return fmt.Errorf("Error on running Postgres migrations: %w", err)
+	// Migrations
+	if err := RunMigrations(postgres); err != nil {
+		return fmt.Errorf("Error on running migrations: %w", err)
 	}
 
+	// Redis connection
 	rdb, err := database.NewRedisClient(cfg)
 	if err != nil {
 		return fmt.Errorf("Error connecting to Redis: %w", err)
 	}
 
-	slog.Info("Redis connected!")
-
+	// Cache and repositories
 	redisCache := cache.NewRedisCache(rdb, time.Second)
 
 	urlCache := cache.NewUrlCache(redisCache)
 	urlRepository := database.NewUrlPostgresRepository(postgres)
 
+	// Handlers
 	r := handlers.NewShortenerRoutes(urlRepository, urlCache)
-
-	mux := http.NewServeMux()
-	r.RegisterRoutes(mux)
-
 	wh := handlers.NewWebHandlers()
+
+	// Register handlers
+	mux := http.NewServeMux()
+
+	r.RegisterRoutes(mux)
 	wh.RegisterRoutes(mux)
 
 	h := middlewares.LoggingMiddleware(mux)
@@ -63,6 +65,7 @@ func Run() error {
 		Handler: h,
 	}
 
+	// Starting server
 	go func() {
 		slog.Info("Server started!")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -70,6 +73,7 @@ func Run() error {
 		}
 	}()
 
+	// Graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
