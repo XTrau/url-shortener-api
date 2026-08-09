@@ -1,4 +1,4 @@
-package database
+package repositories
 
 import (
 	"database/sql"
@@ -7,13 +7,6 @@ import (
 	"urlshortener/internal/apperrors"
 	"urlshortener/internal/domain"
 )
-
-type UrlRepository interface {
-	Create(url domain.Url, slug domain.Slug) error
-	GetUrlBySlug(slug domain.Slug) (domain.Url, error)
-	GetSlugByUrl(url domain.Url) (domain.Slug, error)
-	GetFreeSlugID(slugText string) (int, error)
-}
 
 type UrlPostgresRepository struct {
 	db *sql.DB

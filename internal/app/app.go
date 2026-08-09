@@ -13,6 +13,7 @@ import (
 	"urlshortener/internal/database"
 	"urlshortener/internal/handlers"
 	"urlshortener/internal/middlewares"
+	"urlshortener/internal/repositories"
 )
 
 func Run() error {
@@ -46,7 +47,7 @@ func Run() error {
 	redisCache := cache.NewRedisCache(rdb, time.Second)
 
 	urlCache := cache.NewUrlCache(redisCache)
-	urlRepository := database.NewUrlPostgresRepository(postgres)
+	urlRepository := repositories.NewUrlPostgresRepository(postgres)
 
 	// Handlers
 	r := handlers.NewShortenerRoutes(urlRepository, urlCache)
