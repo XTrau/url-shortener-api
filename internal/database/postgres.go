@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"urlshortener/internal/config"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -13,18 +12,26 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func GetPostgresDsn(cfg config.Config) string {
+type DBConfig interface {
+	DBUser() string
+	DBPass() string
+	DBHost() string
+	DBPort() int
+	DBName() string
+}
+
+func GetPostgresDsn(cfg DBConfig) string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		cfg.DBUser,
-		cfg.DBPass,
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBName,
+		cfg.DBUser(),
+		cfg.DBPass(),
+		cfg.DBHost(),
+		cfg.DBPort(),
+		cfg.DBName(),
 	)
 }
 
-func NewPostresDB(cfg config.Config) (*sql.DB, error) {
+func ConnectPostgres(cfg DBConfig) (*sql.DB, error) {
 	db, err := sql.Open("pgx", GetPostgresDsn(cfg))
 	if err != nil {
 		return nil, err
@@ -38,7 +45,7 @@ func NewPostresDB(cfg config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func RunMigrations(cfg config.Config) error {
+func RunMigrations(cfg DBConfig) error {
 	slog.Debug("Running Migrations")
 
 	m, err := migrate.New(

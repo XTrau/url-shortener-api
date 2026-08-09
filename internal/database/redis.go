@@ -5,19 +5,26 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-	"urlshortener/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisClient(cfg config.Config) (*redis.Client, error) {
-	addr := fmt.Sprintf("%v:%v", cfg.RedisHost, cfg.RedisPort)
+type RedisConfig interface {
+	RedisHost() string
+	RedisPort() string
+	RedisUser() string
+	RedisPassword() string
+	RedisDatabase() int
+}
+
+func NewRedisClient(cfg RedisConfig) (*redis.Client, error) {
+	addr := fmt.Sprintf("%v:%v", cfg.RedisHost(), cfg.RedisPort())
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
-		Username: cfg.RedisUser,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDatabase,
+		Username: cfg.RedisUser(),
+		Password: cfg.RedisPassword(),
+		DB:       cfg.RedisDatabase(),
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
